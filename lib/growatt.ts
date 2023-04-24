@@ -123,14 +123,27 @@ class Growatt {
     });
     const started = Date.now();
     for (let i = 1; ; i++) {
-      const storageData = await this.getStorageStatusData(plantId, storageSn);
+      const { calculated, ...storageData } = await this.getStorageStatusData(
+        plantId,
+        storageSn
+      );
       const now = new Date();
       console.log(
-        "[%s] %s %f%",
+        "[%s] %s %fw: %fw/%fva (%f% / %f%, -%fw) . %f% (~%s)",
         storageSn,
         now.toISOString(),
+        storageData.batPower,
+        storageData.loadPower,
+        storageData.rateVA,
         storageData.loadPrecent,
-        storageData.loadPrecent
+        calculated.batteryPercentLoad,
+        calculated.loss,
+        storageData.capacity,
+        new Date(calculated.secondsRemaining * 1e3 + 86400e3 * 9)
+          .toISOString()
+          .substring(9, 19)
+          .replace(/^0T/, "")
+          .replace("T", " days ")
       );
       const shouldGetNextAt = started + i * every * 1e3;
       file.write(
@@ -152,12 +165,26 @@ class Growatt {
       { storageSn }
     );
 
-    return fixObjectProps(
+    const data = fixObjectProps(
       rawStorageStatusData.json.obj,
       Object.keys(
         rawStorageStatusData.json.obj
-      ) as (keyof typeof rawStorageStatusData.json.obj)[]
+      ) as (keyof typeof rawStorageStatusData.json.obj)[],
+      []
     );
+
+    const secondsRemaining =
+      (((data.capacity - 21) * 87) / data.batPower) * 3600;
+
+    return {
+      ...data,
+      // FIXME This has assumptions that do not hold for all systems
+      calculated: {
+        batteryPercentLoad: data.batPower / 50,
+        loss: data.batPower - data.loadPower,
+        secondsRemaining,
+      },
+    };
   }
 
   async getPlantList() {
