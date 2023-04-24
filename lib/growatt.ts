@@ -128,6 +128,9 @@ class Growatt {
         storageSn
       );
       const now = new Date();
+      const estimatedTimeRemaining = new Date(
+        calculated.secondsRemaining * 1e3 + 86400e3 * 9
+      );
       console.log(
         "[%s] %s %fw: %fw/%fva (%f% / %f%, -%fw) . %f% (~%s)",
         storageSn,
@@ -139,11 +142,13 @@ class Growatt {
         calculated.batteryPercentLoad,
         calculated.loss,
         storageData.capacity,
-        new Date(calculated.secondsRemaining * 1e3 + 86400e3 * 9)
-          .toISOString()
-          .substring(9, 19)
-          .replace(/^0T/, "")
-          .replace("T", " days ")
+        isNaN(estimatedTimeRemaining.valueOf())
+          ? "!"
+          : estimatedTimeRemaining
+              .toISOString()
+              .substring(9, 19)
+              .replace(/^0T/, "")
+              .replace("T", " days ")
       );
       const shouldGetNextAt = started + i * every * 1e3;
       file.write(
