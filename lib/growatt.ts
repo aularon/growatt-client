@@ -240,7 +240,7 @@ class Growatt {
     path: `/${string}`,
     body?: Record<string, string> | string,
     init?: RequestInit
-  ) {
+  ): Promise<{ text: string; json: T; response: Response }> {
     if (!path.startsWith("/")) throw new Error("path should start with /");
     const requestInit = {
       method: body ? "POST" : "GET",
@@ -261,7 +261,6 @@ class Growatt {
     );
 
     console.log(response.status);
-    let retryRequest = false;
 
     if (
       response.status === 302 &&
@@ -269,18 +268,11 @@ class Growatt {
     ) {
       console.log("seems like we need to log in again!");
       await this.login();
-      retryRequest = true;
+      return this.fetch(path, body, init);
     } else if (response.status === 500) {
       console.info("retrying request...");
       await sleep(Math.random() * 5e3 + 1e3); // between 1s and 6s
-      retryRequest = true;
-    }
-
-    if (retryRequest) {
-      // @ts-ignore otherwise it pollutes the original return value
-      // cuz of cyclic <T> ref
-      const res: never = await this.fetch<T>(path, body, init); // try again!
-      return res;
+      return this.fetch(path, body, init);
     }
 
     this.persistCookies();
