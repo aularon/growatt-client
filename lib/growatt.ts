@@ -253,14 +253,14 @@ class Growatt {
       ...init,
     } satisfies RequestInit;
 
-    Deno.stdout.write(encoder.encode(`${requestInit.method} ${path}... `));
+    // Deno.stdout.write(encoder.encode(`${requestInit.method} ${path}... `));
 
     const response = await this.cookieFetch(
       `${this.baseURL}${path}`,
       requestInit
     );
 
-    console.log(response.status);
+    // console.log(response.status);
 
     if (
       response.status === 302 &&
