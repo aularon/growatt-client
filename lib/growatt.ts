@@ -273,6 +273,8 @@ class Growatt {
       console.info("retrying request...");
       await sleep(Math.random() * 5e3 + 1e3); // between 1s and 6s
       return this.fetch(path, body, init);
+    } else if (response.status !== 200) {
+      console.error("Non-200 response", path, response);
     }
 
     this.persistCookies();
