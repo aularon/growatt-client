@@ -139,9 +139,11 @@ class Growatt {
           calculated.secondsRemaining * 1e3 + 86400e3 * 9
         );
         console.log(
-          "[%s] %s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s)",
+          "[%s] %s ℹ️ %d/%d 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s)",
           storageSn,
           shortNowString,
+          storageData.status,
+          storageData.invStatus,
           storageData.batPower < 0 ? "🔌" : "⚡",
           numFormatter.format(-storageData.batPower),
           storageData.loadPower,
