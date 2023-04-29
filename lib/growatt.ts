@@ -122,35 +122,43 @@ class Growatt {
       create: true,
     });
     const started = Date.now();
+    let prevText = "";
     for (let i = 1; ; i++) {
       const { calculated, ...storageData } = await this.getStorageStatusData(
         plantId,
         storageSn
       );
       const now = new Date();
-      const estimatedTimeRemaining = new Date(
-        calculated.secondsRemaining * 1e3 + 86400e3 * 9
-      );
-      console.log(
-        "[%s] %s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s)",
-        storageSn,
-        now.toISOString().substring(5, 19),
-        storageData.batPower < 0 ? "🔌" : "⚡",
-        numFormatter.format(-storageData.batPower),
-        storageData.loadPower,
-        storageData.rateVA,
-        storageData.loadPrecent,
-        calculated.batteryPercentLoad,
-        numFormatter.format(-calculated.loss),
-        storageData.capacity,
-        isNaN(estimatedTimeRemaining.valueOf())
-          ? "!"
-          : estimatedTimeRemaining
-              .toISOString()
-              .substring(9, 19)
-              .replace(/^0T/, "")
-              .replace("T", " days ")
-      );
+      const shortNowString = now.toISOString().substring(5, 19);
+      if (prevText === calculated.text) {
+        // don't output again if status has not changed!
+        // just inform that status is still current!
+        Deno.stdout.write(encoder.encode(`... ${shortNowString}...\r`));
+      } else {
+        const estimatedTimeRemaining = new Date(
+          calculated.secondsRemaining * 1e3 + 86400e3 * 9
+        );
+        console.log(
+          "[%s] %s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s)",
+          storageSn,
+          shortNowString,
+          storageData.batPower < 0 ? "🔌" : "⚡",
+          numFormatter.format(-storageData.batPower),
+          storageData.loadPower,
+          storageData.rateVA,
+          storageData.loadPrecent,
+          calculated.batteryPercentLoad,
+          numFormatter.format(-calculated.loss),
+          storageData.capacity,
+          isNaN(estimatedTimeRemaining.valueOf())
+            ? "!"
+            : estimatedTimeRemaining
+                .toISOString()
+                .substring(9, 19)
+                .replace(/^0T/, "")
+                .replace("T", " days ")
+        );
+      }
       const shouldGetNextAt = started + i * every * 1e3;
       file.write(
         encoder.encode(
@@ -161,21 +169,20 @@ class Growatt {
         )
       );
 
+      prevText = calculated.text;
       await sleep(shouldGetNextAt - now.valueOf());
     }
   }
 
   async getStorageStatusData(plantId: number, storageSn: string) {
-    const rawStorageStatusData = await this.fetch<RawStorageStatusData>(
+    const { json, text } = await this.fetch<RawStorageStatusData>(
       `/panel/storage/getStorageStatusData?plantId=${plantId}`,
       { storageSn }
     );
 
     const data = fixObjectProps(
-      rawStorageStatusData.json.obj,
-      Object.keys(
-        rawStorageStatusData.json.obj
-      ) as (keyof typeof rawStorageStatusData.json.obj)[],
+      json.obj,
+      Object.keys(json.obj) as (keyof typeof json.obj)[],
       []
     );
 
@@ -189,6 +196,7 @@ class Growatt {
         batteryPercentLoad: data.batPower / 50,
         loss: data.batPower - data.loadPower,
         secondsRemaining,
+        text,
       },
     };
   }
