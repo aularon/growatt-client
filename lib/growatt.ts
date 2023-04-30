@@ -10,6 +10,11 @@ import type {
 } from "./raw_types.ts";
 import { fixObjectProps, sleep } from "./utils.ts";
 import { Device } from "./types.ts";
+import {
+  DeviceType,
+  severityColorToEmoji,
+  statusMessagesByDeviceType,
+} from "./statics.ts";
 
 type Credentials = Record<"username" | "password", string>;
 
@@ -124,6 +129,8 @@ class Growatt {
     });
     const started = Date.now();
     let prevText = "";
+    const statuses =
+      statusMessagesByDeviceType[device.deviceTypeName as DeviceType] || {};
     for (let i = 1; ; i++) {
       const { calculated, ...storageData } = await this.getStorageStatusData(
         device.plantId,
@@ -139,12 +146,12 @@ class Growatt {
         const estimatedTimeRemaining = new Date(
           calculated.secondsRemaining * 1e3 + 86400e3 * 9
         );
+        const [statusMessage, statusSeverityColor] =
+          statuses[storageData.status] || [];
         console.log(
-          "[%s] %s ℹ️ %d/%d 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s)",
+          "[%s] %s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s) %s %s",
           device.sn,
           shortNowString,
-          storageData.status,
-          storageData.invStatus,
           storageData.batPower < 0 ? "🔌" : "⚡",
           numFormatter.format(-storageData.batPower),
           storageData.loadPower,
@@ -159,7 +166,11 @@ class Growatt {
                 .toISOString()
                 .substring(9, 19)
                 .replace(/^0T/, "")
-                .replace("T", " days ")
+                .replace("T", " days "),
+          statusSeverityColor
+            ? severityColorToEmoji[statusSeverityColor]
+            : "ℹ️",
+          statusMessage || `Status code: ${storageData.status}`
         );
       }
       const shouldGetNextAt = started + i * every * 1e3;
