@@ -9,6 +9,7 @@ import type {
   RawStorageStatusData,
 } from "./raw_types.ts";
 import { fixObjectProps, sleep } from "./utils.ts";
+import { Device } from "./types.ts";
 
 type Credentials = Record<"username" | "password", string>;
 
@@ -95,7 +96,7 @@ class Growatt {
           device.datalogSn
         );
         sleep(deviceCounter++ * (60e3 / totalDevices)).then(() =>
-          this.monitorStorage(plant.id, device.sn)
+          this.monitorStorage(device)
         );
       });
     });
@@ -115,8 +116,8 @@ class Growatt {
     if (json.result !== 1) throw new Error("Unknown Error!");
   }
 
-  async monitorStorage(plantId: number, storageSn: string, every = 60) {
-    const file = await Deno.open(`${this.options.logPath}/${storageSn}.jsons`, {
+  async monitorStorage(device: Device, every = 60) {
+    const file = await Deno.open(`${this.options.logPath}/${device.sn}.jsons`, {
       append: true,
       write: true,
       create: true,
@@ -125,8 +126,8 @@ class Growatt {
     let prevText = "";
     for (let i = 1; ; i++) {
       const { calculated, ...storageData } = await this.getStorageStatusData(
-        plantId,
-        storageSn
+        device.plantId,
+        device.sn
       );
       const now = new Date();
       const shortNowString = now.toISOString().substring(5, 19);
@@ -140,7 +141,7 @@ class Growatt {
         );
         console.log(
           "[%s] %s ℹ️ %d/%d 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s)",
-          storageSn,
+          device.sn,
           shortNowString,
           storageData.status,
           storageData.invStatus,
