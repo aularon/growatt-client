@@ -3,11 +3,11 @@ import {
   CookieJar,
   wrapFetch,
 } from "https://deno.land/x/another_cookiejar@v5.0.3/mod.ts";
-import {
+import type {
   RawPlantDevices,
   RawPlantList,
   RawStorageStatusData,
-} from "./types.ts";
+} from "./raw_types.ts";
 import { fixObjectProps, sleep } from "./utils.ts";
 
 type Credentials = Record<"username" | "password", string>;
