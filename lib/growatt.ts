@@ -15,6 +15,7 @@ import {
   severityColorToEmoji,
   statusMessagesByDeviceType,
 } from "./statics.ts";
+import { DateTimeFormatter } from "https://deno.land/std@0.125.0/datetime/formatter.ts";
 
 type Credentials = Record<"username" | "password", string>;
 
@@ -26,6 +27,7 @@ type Options = {
 const numFormatter = new Intl.NumberFormat("en-US", {
   signDisplay: "exceptZero",
 });
+const dateFormatter = new DateTimeFormatter("MM/dd HH:mm:ss");
 const encoder = new TextEncoder();
 
 const LOGIN_PATH = "/login";
@@ -137,11 +139,13 @@ class Growatt {
         device.sn
       );
       const now = new Date();
-      const shortNowString = now.toISOString().substring(5, 19);
+      const [formattedDate, formattedTime] = dateFormatter
+        .format(now)
+        .split(" ");
       if (prevText === calculated.text) {
         // don't output again if status has not changed!
         // just inform that status is still current!
-        Deno.stdout.write(encoder.encode(`... ${shortNowString}...\r`));
+        Deno.stdout.write(encoder.encode(`... ${formattedTime}...\r`));
       } else {
         const estimatedTimeRemaining = new Date(
           calculated.secondsRemaining * 1e3 + 86400e3 * 9
@@ -149,9 +153,10 @@ class Growatt {
         const [statusMessage, statusSeverityColor] =
           statuses[storageData.status] || [];
         console.log(
-          "[%s] %s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s) %s %s",
+          "[%s] 📅%s🕒%s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s) %s %s",
           device.sn,
-          shortNowString,
+          formattedDate,
+          formattedTime,
           storageData.batPower < 0 ? "🔌" : "⚡",
           numFormatter.format(-storageData.batPower),
           storageData.loadPower,
