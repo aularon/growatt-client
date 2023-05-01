@@ -200,13 +200,19 @@ class Growatt {
       []
     );
 
+    const battery =
+      data.batPower > 0 ? "discharging" : data.batPower < 0 ? "charging" : null;
+
     const secondsRemaining =
-      (((data.capacity - 21) * 87) / data.batPower) * 3600;
+      (battery === "discharging"
+        ? ((data.capacity - 21) * 87) / data.batPower
+        : ((100 - data.capacity) * 87) / -data.batPower) * 3600;
 
     return {
       ...data,
       // FIXME This has assumptions that do not hold for all systems
       calculated: {
+        battery,
         batteryPercentLoad: data.batPower / 50,
         loss: data.batPower - data.loadPower,
         secondsRemaining,
