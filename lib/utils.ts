@@ -1,3 +1,5 @@
+import { DateTimeFormatter } from "https://deno.land/std@0.125.0/datetime/formatter.ts";
+
 export const fixObjectProps = <
   TObj extends Record<string, string>,
   TNumProps extends (keyof TObj)[],
@@ -24,3 +26,9 @@ export const fixObjectProps = <
 });
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export const numFormatter = new Intl.NumberFormat("en-US", {
+  signDisplay: "exceptZero",
+});
+export const dateFormatter = new DateTimeFormatter("MM/dd HH:mm:ss");
+export const textEncoder = new TextEncoder();

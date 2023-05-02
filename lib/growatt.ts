@@ -8,14 +8,20 @@ import type {
   RawPlantList,
   RawStorageStatusData,
 } from "./raw_types.ts";
-import { fixObjectProps, sleep } from "./utils.ts";
+import {
+  dateFormatter,
+  textEncoder,
+  fixObjectProps,
+  numFormatter,
+  sleep,
+} from "./utils.ts";
 import { Device } from "./types.ts";
 import {
   DeviceType,
   severityColorToEmoji,
   statusMessagesByDeviceType,
 } from "./statics.ts";
-import { DateTimeFormatter } from "https://deno.land/std@0.125.0/datetime/formatter.ts";
+import { openRotatingLogFile } from "./logger.ts";
 
 type Credentials = Record<"username" | "password", string>;
 
@@ -23,12 +29,6 @@ type Options = {
   cookiesFile: string;
   logPath: string;
 };
-
-const numFormatter = new Intl.NumberFormat("en-US", {
-  signDisplay: "exceptZero",
-});
-const dateFormatter = new DateTimeFormatter("MM/dd HH:mm:ss");
-const encoder = new TextEncoder();
 
 const LOGIN_PATH = "/login";
 const COOKIES_FILE = "./cookies.json";
@@ -124,11 +124,9 @@ class Growatt {
   }
 
   async monitorStorage(device: Device, every = 60) {
-    const file = await Deno.open(`${this.options.logPath}/${device.sn}.jsons`, {
-      append: true,
-      write: true,
-      create: true,
-    });
+    const log = openRotatingLogFile(
+      `${this.options.logPath}/${device.sn}-{date}.jsons`
+    );
     const started = Date.now();
     let prevText = "";
     const statuses =
@@ -139,13 +137,11 @@ class Growatt {
         device.sn
       );
       const now = new Date();
-      const [formattedDate, formattedTime] = dateFormatter
-        .format(now)
-        .split(" ");
+      const [, formattedTime] = dateFormatter.format(now).split(" ");
       if (prevText === calculated.text) {
         // don't output again if status has not changed!
         // just inform that status is still current!
-        Deno.stdout.write(encoder.encode(`... ${formattedTime}...\r`));
+        Deno.stdout.write(textEncoder.encode(`... ${formattedTime}...\r`));
       } else {
         const estimatedTimeRemaining = new Date(
           calculated.secondsRemaining * 1e3 + 86400e3 * 9
@@ -153,9 +149,8 @@ class Growatt {
         const [statusMessage, statusSeverityColor] =
           statuses[storageData.status] || [];
         console.log(
-          "[%s] 📅%s🕒%s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s) %s %s",
+          "[%s] 🕒%s 🔋%s%sw: %fw/%fva (%f% / %f%, %sw) . %f% (~%s) %s %s",
           device.sn,
-          formattedDate,
           formattedTime,
           storageData.batPower < 0 ? "🔌" : "⚡",
           numFormatter.format(-storageData.batPower),
@@ -179,14 +174,10 @@ class Growatt {
         );
       }
       const shouldGetNextAt = started + i * every * 1e3;
-      file.write(
-        encoder.encode(
-          JSON.stringify({
-            _date: now,
-            ...storageData,
-          }) + "\n"
-        )
-      );
+      log({
+        _date: now,
+        ...storageData,
+      });
 
       prevText = calculated.text;
       await sleep(shouldGetNextAt - now.valueOf());
