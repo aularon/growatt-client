@@ -21,9 +21,9 @@ export type DeviceType = (typeof deviceTypes)[number];
 
 type SeverityColor = "green" | "orange" | "red";
 
-export const statusMessagesByDeviceType: Partial<
-  Record<DeviceType, Record<number, [string, SeverityColor?]>>
-> = {
+export type StatusMessageMap = Record<number, [string, SeverityColor?]>;
+
+export const statusMessagesByDeviceType = {
   storage: {
     "-1": ["Lost"],
     0: ["Standby", "orange"],
@@ -42,10 +42,25 @@ export const statusMessagesByDeviceType: Partial<
     13: ["AC charge and Discharge"],
     14: ["Combine charge and Discharge"],
   },
-};
+} as const satisfies Partial<Record<DeviceType, StatusMessageMap>>;
 
 export const severityColorToEmoji: Record<SeverityColor, string> = {
   green: "✅",
   orange: "⚠️",
   red: "❌",
 };
+
+export const successResponse = {
+  msg: "inv_set_success",
+  success: true,
+} as const satisfies GenericResponse;
+export type GenericResponse = {
+  msg: string;
+  success: boolean;
+};
+
+export const setTypes = [
+  "storage_shangke_output_start_time_period",
+  "storage_shangke_output_end_time_period",
+  "storage_spf5000_manualStartEn",
+] as const;

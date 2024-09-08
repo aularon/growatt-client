@@ -18,16 +18,25 @@ import {
 import { Device } from "./types.ts";
 import {
   DeviceType,
+  GenericResponse,
+  setTypes,
   severityColorToEmoji,
+  StatusMessageMap,
   statusMessagesByDeviceType,
 } from "./statics.ts";
 import { openRotatingLogFile } from "./logger.ts";
 
 type Credentials = Record<"username" | "password", string>;
 
+type ParsedStorageData = Omit<
+  Awaited<ReturnType<InstanceType<typeof Growatt>["getStorageStatusData"]>>,
+  "calculated"
+>;
+
 type Options = {
   cookiesFile: string;
   logPath: string;
+  tick?: (args: { storageData: ParsedStorageData; device: Device }) => void;
 };
 
 const LOGIN_PATH = "/login";
@@ -129,8 +138,13 @@ class Growatt {
     );
     const started = Date.now();
     let prevText = "";
-    const statuses =
-      statusMessagesByDeviceType[device.deviceTypeName as DeviceType] || {};
+    const deviceTypeName = device.deviceTypeName as DeviceType;
+    const statuses: StatusMessageMap =
+      deviceTypeName in statusMessagesByDeviceType
+        ? statusMessagesByDeviceType[
+            deviceTypeName as keyof typeof statusMessagesByDeviceType
+          ]
+        : {};
     for (let i = 1; ; i++) {
       const { calculated, ...storageData } = await this.getStorageStatusData(
         device.plantId,
@@ -143,6 +157,13 @@ class Growatt {
         // just inform that status is still current!
         Deno.stdout.write(textEncoder.encode(`... ${formattedTime}...\r`));
       } else {
+        log({
+          _date: now,
+          ...storageData,
+        });
+        if (this.options.tick) {
+          this.options.tick({ storageData, device });
+        }
         const estimatedTimeRemaining = new Date(
           calculated.secondsRemaining * 1e3 + 86400e3 * 9
         );
@@ -174,10 +195,6 @@ class Growatt {
         );
       }
       const shouldGetNextAt = started + i * every * 1e3;
-      log({
-        _date: now,
-        ...storageData,
-      });
 
       prevText = calculated.text;
       await sleep(shouldGetNextAt - now.valueOf());
@@ -305,9 +322,23 @@ class Growatt {
     this.persistCookies();
 
     const text = await response.text();
-    const json: T = JSON.parse(text);
+    const json = JSON.parse(text);
 
     return { text, json, response };
+  }
+
+  set(params: {
+    action: "storageSPF5000Set";
+    serialNum: string;
+    type: (typeof setTypes)[number];
+    param1: string;
+  }) {
+    return this.fetch<GenericResponse>("/tcpSet.do", {
+      ...params,
+      param2: "",
+      param3: "",
+      param4: "",
+    });
   }
 
   persistCookies() {
